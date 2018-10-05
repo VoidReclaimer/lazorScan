@@ -1,13 +1,24 @@
 #!/usr/bin/python2.7
+#credit to phillips321 for many of the functions for converting the ip addresses and getting started with argparsehttps://www.phillips321.co.uk/2014/08/12/python-port-scanner-nmap-py/
+
 
 import socket
 import subprocess
 import sys
 import argparse
 import re
+import colorama
+from colorama import Fore,Style
 from datetime import datetime
 
 def main():
+	title = """
+        _______ ______  _____   ______ _______ _______ _______ __   _
+ |      |_____|  ____/ |     | |_____/ |______ |       |_____| | \  |
+ |_____ |     | /_____ |_____| |    \_ ______| |_____  |     | |  \_|
+                                                                     
+"""
+	#stores all the arguments made at time of running
 	parser = argparse.ArgumentParser(description='lazorScan.py - Simple python port scanner')
 	parser.add_argument('-sS', '--tcpscan', action='store_true', help='Enable this for TCP scans')
 	parser.add_argument('-p', '--ports', default='1-1024', help='The ports you want to scan (21,22,80,135-139,443,445)')
@@ -29,7 +40,7 @@ def main():
 		elif '-' in args.targets:
 			targets = iprange(args.targets)
 		elif ',' in args.targets:
-			targets = args.targets.split(",")
+			targets = args.targets.split(",")#handles lists of ip addresses
 		else:
 			try: targets.append(socket.gethostbyname(args.targets)) # get IP from FQDN
 			except: errormsg("Failed to translate hostname to IP address")
@@ -41,13 +52,14 @@ def main():
 			return
 		for x in f:
 			targets.append(x)
-	else: parser.print_help(); errormsg("You need to set a hostname")
+	else: parser.print_help(); errormsg("You need to set a hostname")#no ip given
 	# Set ports
 	if args.ports == '-': args.ports = '1-65535'
 	ranges = (x.split("-") for x in args.ports.split(","))
 	ports = [i for r in ranges for i in range(int(r[0]), int(r[-1]) + 1)]
 	# Start Scanning
 	t1 = datetime.now()
+	print(Fore.GREEN + title + Style.RESET_ALL)
 	for target in targets:
 		if args.traceroute:
 			traceroute(target)
@@ -73,7 +85,7 @@ def portscan(target,ports,tcp,servicescan):
             except Exception:
                 failvar = 0
             else:
-		if servicescan:
+		if servicescan:#attempts to get simple service info
 			print "%d/tcp \topen"% (portnum),
 			if portnum == 80:
 				grabHTTP(s)
@@ -135,17 +147,17 @@ def returnCIDR(c):
 def grab(conn,target,portnum):
 	try:
 		conn.connect((target,portnum))
-		ret = conn.recv(1024)
+		ret = conn.recv(1024)#do we get a banner back?
 		print '[+]' + str(ret)
 		return
 	except Exception, e:
-		print '[+]' + socket.getservbyport(portnum)
+		print '[+]' + socket.getservbyport(portnum)#just returns what the port is designated for. may not be accurate
 	return
 def grabHTTP(conn):
 	try:
 		conn.send('GET HTTP/1.1 \r\n')
 		ret = conn.recv(1024)
-		banner = re.search('<address>(.+)</address>',ret)
+		banner = re.search('<address>(.+)</address>',ret)#a bit of regex to extract server info if possible from http request. doesnt always work
 		if banner:
 			print '[+]' + str(banner.group(1))
 		else:
@@ -156,22 +168,23 @@ def grabHTTP(conn):
 		return
 def traceroute(target):
 	try:
-		traceroute = subprocess.Popen(["traceroute", target],stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+		traceroute = subprocess.Popen(["traceroute", target],stdout=subprocess.PIPE, stderr=subprocess.STDOUT)#linux
 		for line in iter(traceroute.stdout.readline,""):
 		    print line
 	except:
 		pass
 	try:
-		traceroute = subprocess.Popen(["tracert", target],stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+		traceroute = subprocess.Popen(["tracert", target],stdout=subprocess.PIPE, stderr=subprocess.STDOUT)#windows
 		for line in iter(traceroute.stdout.readline,""):
 		    print line
 	except:
 		pass
 def ICMPscan(target):
 	try:
-		icmp = subprocess.Popen(["ping", target, '-n', '1', '-w', '5'],stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+		icmp = subprocess.Popen(["ping", target, '-c', '1'],stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 		for line in iter(icmp.stdout.readline,""):
-		    if "Reply" in line:
+		    if "from" in line:
+			target = target.rstrip()
 		    	print target + " is up."
 		    	return 1
 	    	else:
