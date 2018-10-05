@@ -1,4 +1,5 @@
 #!/usr/bin/python2.7
+#created by twyatt3
 #credit to phillips321 for many of the functions for converting the ip addresses and getting started with argparsehttps://www.phillips321.co.uk/2014/08/12/python-port-scanner-nmap-py/
 
 
